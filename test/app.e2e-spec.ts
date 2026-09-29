@@ -4,7 +4,7 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module.js';
 
-describe('AppController (e2e)', () => {
+describe('URL hash creation (e2e)', () => {
   let app: INestApplication<App>;
 
   beforeEach(async () => {
@@ -13,14 +13,29 @@ describe('AppController (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    await app.init();
+    await app.listen(0);
   });
 
-  it('/ (GET)', () => {
+  it('POST /urls/hash returns a deterministic hash', () => {
     return request(app.getHttpServer())
-      .get('/')
-      .expect(200)
-      .expect('Hello World!');
+      .post('/urls/hash')
+      .send({ url: 'https://example.com' })
+      .expect(201)
+      .expect(({ body }) => {
+        expect(body).toEqual({ hash: expect.stringMatching(/^[\w-]{11}$/) });
+      });
+  });
+
+  it('POST /urls/hash rejects an invalid URL', () => {
+    return request(app.getHttpServer())
+      .post('/urls/hash')
+      .send({ url: 'example.com' })
+      .expect(400)
+      .expect(({ body }) => {
+        expect(body.message).toBe(
+          'A URL deve ser absoluta e usar o protocolo HTTP ou HTTPS.',
+        );
+      });
   });
 
   afterEach(async () => {
